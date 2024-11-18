@@ -17,6 +17,12 @@ You can intercept exceptions from coroutines and ordinary functions using the sa
   * Choose execution order of the handlers
 * Maximum customization of any object such as loggers, handlers and interceptors
 
+## Installation guide (pip)
+
+```console
+$ pip3 install intercept-it
+```
+
 ## Installation guide (GitHub)
 
 #### 1. Clone the project repo one of the following ways:
