@@ -17,11 +17,6 @@ You can intercept exceptions from coroutines and ordinary functions using the sa
   * Choose execution order of the handlers
 * Maximum customization of any object such as loggers, handlers and interceptors
 
-## Installation guide (pip)
-```console
-$ pip install intercept-it
-```
-
 ## Installation guide (GitHub)
 
 #### 1. Clone the project repo one of the following ways:
@@ -577,8 +572,8 @@ Second handler delivers logs: 2024-11-18 11:50:29.481526
 
 ## Future plans
 
-I want to solve the problem with exception tracing in asynchronous code:
-The following points will allow us to obtain a complete tree of exceptions that occur during the execution of coroutines.
+I want to solve the problem with exception tracing in asynchronous code.  
+The following points will allow us to obtain a complete tree of exceptions that occur during the execution of coroutines:
 
 * ExceptionGroup supporting: [PEP-654](https://peps.python.org/pep-0654/)
 * Exception notes supporting: [PEP-678](https://peps.python.org/pep-0678/)
