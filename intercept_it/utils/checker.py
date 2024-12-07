@@ -3,7 +3,6 @@ from typing import Callable, Any
 
 from intercept_it.utils.exceptions import InterceptItSetupException, InterceptItRunTimeException
 from intercept_it.loggers.base_logger import BaseLogger
-from intercept_it.utils.enums import ExecutionModesEnum, HandlersExecutionModesEnum
 
 
 class ArgumentsChecker:
@@ -18,37 +17,34 @@ class ArgumentsChecker:
             loggers: list[BaseLogger] | None = None,
             exceptions: list[type[BaseException]] | None = None,
             raise_exception: bool = False,
-            send_function_parameters_to_handlers: bool = False,
-            run_until_success: bool = False,
-            execution_mode: str = ExecutionModesEnum.SYNCHRONOUS.value,
-            handlers_execution_mode: str = HandlersExecutionModesEnum.ORDERED.value,
-            loggers_execution_mode: str = HandlersExecutionModesEnum.ORDERED.value
+            greed_mode: bool = False,
+            async_mode: bool = False,
+            fast_handlers_execution: bool = False,
+            fast_loggers_execution: bool = False
     ) -> None:
-        self.check_execution_mode(execution_mode)
-        self.check_handlers_execution_mode(handlers_execution_mode)
-        self.check_handlers_execution_mode(loggers_execution_mode)
-
         self.check_exceptions(exceptions)
         self.check_loggers(loggers)
 
         self.check_boolean_arguments(
             {
                 'raise_exception': raise_exception,
-                'send_function_parameters_to_handlers': send_function_parameters_to_handlers,
-                'run_until_success': run_until_success
+                'greed_mode': greed_mode,
+                'async_mode': async_mode,
+                'fast_handlers_execution': fast_handlers_execution,
+                'fast_loggers_execution': fast_loggers_execution
             }
         )
 
     def check_nested_interceptors(
             self,
             interceptors: dict[int | str | type[BaseException], Any],
-            allowed_interceptors: list[Any]
+            base_interceptor_class
     ) -> None:
         """
         Checks if group_ids and interceptors have invalid format
 
         :param interceptors: Interceptors collection
-        :param allowed_interceptors: Allowed interceptors objects
+        :param base_interceptor_class: Parent interceptor
         """
         for key in interceptors:
             if (
@@ -61,28 +57,11 @@ class ArgumentsChecker:
                 )
 
         for interceptor in interceptors.values():
-            if (
-                    not isinstance(interceptor, allowed_interceptors[0]) and
-                    not isinstance(interceptor, allowed_interceptors[1])
-            ):
+            if not isinstance(interceptor, base_interceptor_class):
                 raise InterceptItSetupException(
-                    f'Received invalid interceptor object: {interceptor.__class__}.\n'
-                    f'Expected GlobalInterceptor or UnitInterceptor'
+                    f'Received invalid interceptor object: {interceptor.__class__}. '
+                    f'Expected BaseInterceptor subclasses'
                 )
-
-    @staticmethod
-    def check_execution_mode(execution_mode: str) -> None:
-        if execution_mode not in ExecutionModesEnum:
-            raise InterceptItSetupException(
-                f'Wrong execution mode: {execution_mode}. Expected "sync" or "async"'
-            )
-
-    @staticmethod
-    def check_handlers_execution_mode(execution_mode: str) -> None:
-        if execution_mode not in HandlersExecutionModesEnum:
-            raise InterceptItSetupException(
-                f'Wrong handlers execution mode: {execution_mode}. Expected "fast" or "random"'
-            )
 
     @staticmethod
     def check_exceptions(exceptions: list[type[BaseException]] | None) -> None:
@@ -109,12 +88,15 @@ class ArgumentsChecker:
                     )
 
     @staticmethod
+    def check_timeout(timeout: int) -> None:
+        if not isinstance(timeout, int) and not isinstance(timeout, float):
+            raise InterceptItSetupException(f'Wrong type {type(timeout)} for timeout parameter. Expected int, float')
+
+    @staticmethod
     def check_boolean_arguments(arguments: dict[str, bool]) -> None:
         for name, value in arguments.items():
             if not isinstance(value, bool):
-                raise InterceptItSetupException(
-                    f'Wrong type for "{name}" parameter. Expected boolean'
-                )
+                raise InterceptItSetupException(f'Wrong type for "{name}" parameter. Expected boolean')
 
     @staticmethod
     def check_function(function: Callable) -> None:
@@ -128,12 +110,9 @@ class ArgumentsChecker:
     def check_group_existence(
             group_id: int | str | type[BaseException],
             interceptors: dict[int | str | type[BaseException], Any]
-    ) -> Any:
-        if not (group := interceptors.get(group_id)):
-            raise InterceptItRunTimeException(
-                f'Received invalid group_id: {group_id}'
-            )
-        return group
+    ) -> None:
+        if not interceptors.get(group_id):
+            raise InterceptItRunTimeException(f'Received invalid group_id: {group_id}')
 
 
 arguments_checker = ArgumentsChecker()

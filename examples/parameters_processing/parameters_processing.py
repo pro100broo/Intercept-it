@@ -4,21 +4,8 @@ import asyncio
 from entities import (
     MessageModel,
     RequestsException,
-    interceptor
-)
-
-
-# Handler for not delivered messages
-async def parameters_handler(message: MessageModel, send_requests_queue: asyncio.Queue) -> None:
-    send_requests_queue.task_done()
-    print(f'Intercepted message: {message}')
-    message.status = 'Awaiting resend'
-    await resend_requests_queue.put(message)
-
-
-interceptor.register_handler(
-    parameters_handler,
-    receive_parameters=True  # Enable receiving parameters from wrapped function
+    interceptor,
+    resend_requests_queue
 )
 
 
@@ -70,5 +57,4 @@ async def main():
 
 
 if __name__ == '__main__':
-    resend_requests_queue = asyncio.Queue(maxsize=50)
     asyncio.run(main())

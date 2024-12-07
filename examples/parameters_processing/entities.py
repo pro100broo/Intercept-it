@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime
 from pydantic import BaseModel
@@ -29,9 +30,27 @@ class MessageModel(BaseModel):
         return f"Text: {self.message}. Status: {self.status}"
 
 
+# The stash of undelivered  messages
+resend_requests_queue = asyncio.Queue(maxsize=50)
+
+
+# Undelivered messages handler
+async def parameters_handler(message: MessageModel, send_requests_queue: asyncio.Queue) -> None:
+    send_requests_queue.task_done()
+    print(f'Intercepted message: {message}')
+    message.status = 'Awaiting resend'
+    await resend_requests_queue.put(message)
+
+
 # Initialize interceptor's object with necessary configuration
 interceptor = UnitInterceptor(
     loggers=[CustomLogger()],
-    send_function_parameters_to_handlers=True,  # Enable sending parameters to handlers
-    execution_mode='async'
+    greed_mode=True,  # Enable routing parameters from the wrapped function to handlers
+    async_mode=True  # Enable async code support
+)
+
+
+interceptor.register_handler(
+    parameters_handler,
+    receive_parameters=True  # Enable receiving wrapped function parameters from interceptor
 )

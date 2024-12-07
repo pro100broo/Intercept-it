@@ -1,6 +1,6 @@
 [project]
 name = 'intercept-it'
-version = '0.0.1'
+version = '0.1.0'
 description = 'Customized exceptions handling'
 authors = [
     {name = 'Simon Shalnev', email = 'shalnev.sema@mail.ru'}
