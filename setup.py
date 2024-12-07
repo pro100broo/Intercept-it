@@ -5,7 +5,7 @@ with open("README.md", "r") as file:
 
 setup(
     name='intercept-it',
-    version='0.0.1',
+    version='0.1.0',
     author="Simon Shalnev",
     author_email="shalnev.sema@mail.ru",
     description="Generic exception handlers",

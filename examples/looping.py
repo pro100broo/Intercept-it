@@ -1,9 +1,7 @@
 import random
 
-from intercept_it import UnitInterceptor
+from intercept_it import LoopedInterceptor
 from intercept_it import STDLogger
-
-from intercept_it.utils import cooldown_handler
 
 
 class RequestsException(Exception):
@@ -11,20 +9,15 @@ class RequestsException(Exception):
 
 
 # Initialize interceptor's object with necessary configuration
-interceptor = UnitInterceptor(
+interceptor = LoopedInterceptor(
+    exceptions=[RequestsException],
     loggers=[STDLogger(default_formatter=lambda error: f'Error occurred: {error}. Waiting for success connection')],
-    run_until_success=True
-)
-
-interceptor.register_handler(
-    cooldown_handler,
-    5,
-    execution_order=2
+    timeout=5
 )
 
 
 # Simulating the webserver work
-@interceptor.intercept(RequestsException)
+@interceptor.intercept
 def receive_data_from_api(api_key: str) -> dict[str, str]:
     is_server_down = random.randint(0, 10)
     if is_server_down >= 4:

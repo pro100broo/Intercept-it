@@ -2,7 +2,6 @@ import asyncio
 from typing import Callable, Coroutine
 
 from intercept_it.utils.models import DefaultHandler
-from intercept_it.utils.enums import ExecutionModesEnum, HandlersExecutionModesEnum
 from intercept_it.loggers.base_logger import BaseLogger, BaseAsyncLogger
 from intercept_it.utils.checker import arguments_checker
 from intercept_it.utils.exceptions import InterceptItRunTimeException
@@ -18,11 +17,10 @@ class BaseInterceptor:
             exceptions: list[type[BaseException]] | None = None,
             loggers: list[BaseLogger | BaseAsyncLogger] | None = None,
             raise_exception: bool = False,
-            send_function_parameters_to_handlers: bool = False,
-            run_until_success: bool = False,
-            execution_mode: str = ExecutionModesEnum.SYNCHRONOUS.value,
-            handlers_execution_mode: str = HandlersExecutionModesEnum.ORDERED.value,
-            loggers_execution_mode: str = HandlersExecutionModesEnum.ORDERED.value
+            greed_mode: bool = False,
+            async_mode: bool = False,
+            fast_handlers_execution: bool = True,
+            fast_loggers_execution: bool = True
     ):
         """
         :param exceptions: Collection of target exceptions
@@ -32,39 +30,34 @@ class BaseInterceptor:
         :param raise_exception: If equals ``True`` interceptor sends all caught exceptions higher up the call stack.
             If not specified, feature disabled
 
-        :param run_until_success: If equals ``True`` interceptor executes the wrapped function with handlers and loggers
-            until an exception occurs in endless cycle. If not specified, feature disabled.
-            Note that if ``raise_exception`` parameter equals ``True`` the feature also won't work
-
-        :param send_function_parameters_to_handlers: If equals ``True`` interceptor sends wrapped function parameters
+        :param greed_mode: If equals ``True`` interceptor sends wrapped function parameters
             to some handlers. If not specified, feature disabled
 
-        :param execution_mode: If equals ``async`` interceptor can wrap coroutines.
+         :param async_mode: If equals ``True`` interceptor can work with coroutines.
             If not specified, can wrap only ordinary functions.
-            No interceptor can wrap two specified types of functions at the same time!
+            Interceptor can't wrap ordinary function and coroutine at the same time!
 
-        :param handlers_execution_mode: If equals ``ordered`` handlers will be executed in order with await
-            instruction. If equals ``fast`` they will be executed in asyncio.gather()
+        :param fast_handlers_execution: If equals ``True`` handlers will be executed as tasks.
+         If equals ``False`` they will be executed in order with ``await`` instruction.
 
-        :param loggers_execution_mode: If equals ``ordered`` loggers will be executed in order with await
-            instruction. If equals ``fast`` they will be executed in asyncio.gather()
+        :param fast_loggers_execution: If equals ``True`` loggers will be executed as tasks.
+         If equals ``False`` they will be executed in order with ``await`` instruction.
         """
         arguments_checker.check_setup_parameters(
             loggers,
             exceptions,
             raise_exception,
-            send_function_parameters_to_handlers,
-            run_until_success,
-            execution_mode,
-            handlers_execution_mode,
-            loggers_execution_mode
+            greed_mode,
+            async_mode,
+            fast_handlers_execution,
+            fast_loggers_execution
         )
 
         self._handlers: list[DefaultHandler] | list[None] = []
         self._loggers = loggers
-        self._send_function_parameters_to_handlers = send_function_parameters_to_handlers
-        self._handlers_execution_mode = handlers_execution_mode
-        self._loggers_execution_mode = loggers_execution_mode
+        self._greed_mode = greed_mode
+        self._fast_handlers_execution = fast_handlers_execution
+        self._fast_loggers_execution = fast_loggers_execution
 
     def __call__(self, *args, **kwargs):
         raise InterceptItRunTimeException('Invalid interceptor using. Use interceptor methods to call it')
@@ -112,14 +105,14 @@ class BaseInterceptor:
 
     async def _process_async_loggers(self, message: str) -> None:
         if self._loggers:
-            if self._loggers_execution_mode == HandlersExecutionModesEnum.ORDERED.value:
-                [await logger.save_logs(message) for logger in self._loggers]
-            else:
+            if self._fast_loggers_execution:
                 await asyncio.gather(*[logger.save_logs(message) for logger in self._loggers])
+            else:
+                [await logger.save_logs(message) for logger in self._loggers]
 
     def _process_sync_handlers(self, args, kwargs) -> None:
         if self._handlers:
-            if self._send_function_parameters_to_handlers:
+            if self._greed_mode:
                 [
                     handler.callable(*handler.args, *args, **handler.kwargs, **kwargs)
                     if handler.receive_parameters
@@ -138,7 +131,7 @@ class BaseInterceptor:
             await self._execute_handlers(handlers)
 
     async def _generate_handlers(self, args, kwargs) -> list[Coroutine]:
-        if self._send_function_parameters_to_handlers:
+        if self._greed_mode:
             return [
                 handler.callable(*handler.args, *args, **handler.kwargs, **kwargs)
                 if handler.receive_parameters
@@ -152,7 +145,7 @@ class BaseInterceptor:
             ]
 
     async def _execute_handlers(self, handlers: list[Coroutine]) -> None:
-        if self._handlers_execution_mode == HandlersExecutionModesEnum.ORDERED.value:
-            [await handler for handler in handlers]
-        else:
+        if self._fast_handlers_execution:
             await asyncio.gather(*handlers)
+        else:
+            [await handler for handler in handlers]

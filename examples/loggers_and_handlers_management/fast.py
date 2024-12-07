@@ -5,31 +5,26 @@ from intercept_it import UnitInterceptor
 
 
 async def first_logging_operation() -> None:
+    print(f'First handler received logs: {datetime.now()}')
     await asyncio.sleep(5)
     print(f'First handler delivered logs: {datetime.now()}')
 
 
 async def second_logging_operation() -> None:
+    print(f'Second handler received logs: {datetime.now()}')
     await asyncio.sleep(5)
     print(f'Second handler delivered logs: {datetime.now()}')
 
 
 # Initialize interceptor's object with necessary configuration
-interceptor = UnitInterceptor(execution_mode='async')
+interceptor = UnitInterceptor(async_mode=True)
 
-interceptor.register_handler(
-    first_logging_operation,
-    execution_order=1
-)
-
-interceptor.register_handler(
-    second_logging_operation,
-    execution_order=2
-)
+interceptor.register_handler(first_logging_operation)
+interceptor.register_handler(second_logging_operation)
 
 
 @interceptor.intercept(ZeroDivisionError)
-def dangerous_calculation(number: int):
+async def dangerous_calculation(number: int) -> float:
     return number / 0
 
 
